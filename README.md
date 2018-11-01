@@ -2,7 +2,7 @@
 This recipe compiles and installs OpenFOAM/6 and its prerequisites from source.
 Entire build may take up to 3-4 hours.
 
-If Singularity is not installed in your environment, you can run following commands:
+If Singularity is not installed in your environment, you can use following commands as a template:
 ```bash
 # Package details
 base=$HOME/singularity
