@@ -5,7 +5,7 @@ From: centos:7
     This recipe compiles and installs OpenFOAM/6 and required Third-Party tools from source.
 
 %labels
-    CREATOR: Fatih Ertinaz
+    CREATOR Fatih Ertinaz
 
 %post
     yum clean all
