@@ -1,16 +1,17 @@
 ## Singularity
-This recipe compiles and installs OpenFOAM/6 and its prerequisites from source.
+This recipe compiles and installs OpenFOAM-6 and its prerequisites from their source.
 Entire build may take up to 3-4 hours.
 
 ## Singularity installation
 If Singularity is not installed in your environment, you can use following commands as a template:
 ```bash
-# Package details
-base=$HOME/singularity
-pkg=singularity-src
+# Package details -- change according to your environment
+base=$HOME/Singularity
+pkg=singularity
+vrs=X.Y.Z
 
 # Go to source code
-cd $base/$pkg
+cd $base/$pkg-$vrs
 
 # Configure
 ./autogen.sh
@@ -20,8 +21,9 @@ cd $base/$pkg
 make 2>&1 | tee log.make
 sudo make install 2>&1 | tee log.make.install
 ```
-Procedure above assumes Singularity source is cloned from its git repository. 
-Also, once the installation is complete, you may have to update root $PATH since "/usr/local/bin" may not be a part of it.
+Procedure above assumes Singularity source is cloned from its git repository. If you downloaded a source release, rather than cloning the git repo, you probably don't need to run "autogen.sh".
+
+Also, when the installation is completed successfully, you may have to update root $PATH since "/usr/local/bin" may not be a part of it.
 
 ## Usage of the OpenFOAM recipe
 One option is to run:
