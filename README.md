@@ -1,7 +1,8 @@
-# Singularity
+## Singularity
 This recipe compiles and installs OpenFOAM/6 and its prerequisites from source.
 Entire build may take up to 3-4 hours.
 
+## Singularity installation
 If Singularity is not installed in your environment, you can use following commands as a template:
 ```bash
 # Package details
@@ -21,3 +22,23 @@ sudo make install 2>&1 | tee log.make.install
 ```
 Procedure above assumes Singularity source is cloned from its repository. 
 Also, you may have to update root's $PATH since "/usr/local/bin" is not a part of it.
+
+## Usage of the OpenFOAM recipe
+One option is to run:
+```bash
+sudo singularity build openfoam-6 Singularity.recipe
+```
+This command will initially install development libraries for CentOS-7.5. 
+It will then compile:
+-- CMake-3.9
+-- Boost_1_55
+-- CGAL-4.10
+-- OpenMPI-2.1.1
+-- OpenFOAM-6
+This is a time consuming process and can take up to a few hours depending on the host hardware.
+
+One can also directly invoke shell in the container:
+```bash
+singularity run shub://fertinaz/Singularity-Openfoam
+```
+Latter will be much faster.
