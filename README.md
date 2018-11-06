@@ -78,7 +78,7 @@ sudo make -C builddir install 2>&1 | tee log.make.install
 ## Usage of the OpenFOAM recipe
 One option is to run:
 ```bash
-singularity build openfoam-6.sif Singularity.recipe
+sudo singularity build openfoam-6.sif Singularity.openfoam6
 ```
 This command will initially install development libraries for CentOS-7.5. 
 It will then compile:
