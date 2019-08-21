@@ -31,7 +31,7 @@ Note: I keep installation instructions for version 2.5, however you should not u
 Singularity release 3 requires GO. Therefore one has to start with installing GO version, 
 preferably from a prebuilt binary. To do so, you can use following procedure:
 ```
-# Change desired version and path -- no need to touch the rest
+# Change desired version and path
 export GOVRS=1.12.9
 export OS=linux 
 export ARCH=amd64 
@@ -46,9 +46,8 @@ GO should be installed to a location in the root folder, /usr/local is a good pr
 Don't forget to update your environment with:
 ```
 # Update environment
-export GOROOT="/usr/local/go"
-export GOBIN=${GOROOT}/bin
-export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
+export GOROOT=/usr/local/go
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 ```
 Warning: I highly recommend you to add those paths to the sudo environment as well. 
 
@@ -92,4 +91,4 @@ This will execute the shell from the image which is located in the singularity-h
 Run command: 
 ``` sudo singularity build openfoam-7.sif of7.def ```
 
-This recipe install prerequisites using package manager, however compiles OpenFOAM-7 from its source.
+This recipe installs prerequisites using package manager, then compiles OpenFOAM-7 from its source.
