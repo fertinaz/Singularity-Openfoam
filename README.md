@@ -25,57 +25,49 @@ Procedure above assumes Singularity source is cloned from its git repository. If
 
 Also, when the installation is completed successfully, you may have to update root $PATH since "/usr/local/bin" may not be a part of it.
 
+Note: I keep installation instructions for version 2.5, however you should not use 2.x versions anymore. 
+
 ## Singularity-3 installation
 Singularity release 3 requires GO. Therefore one has to start with installing GO version, 
 preferably from a prebuilt binary. To do so, you can use following procedure:
 ```
 # Change desired version and path -- no need to touch the rest
-base=$HOME/go
-vrs=1.11.1
-os=linux
-arch=amd64
+export GOVRS=1.12.9
+export OS=linux 
+export ARCH=amd64 
 
-tarball=go${vrs}.${os}-${arch}.tar.gz
+wget https://dl.google.com/go/go${GOVRS}.${OS}-${ARCH}.tar.gz
+sudo tar -C /usr/local -xzf go${GOVRS}.${OS}-${ARCH}.tar.gz
 
-dest=/usr/local
-
-# Do as root
-sudo mkdir -p ${dest}/go
-sudo tar -C ${dest} -xzf ${tarball}
+export GOPATH=$HOME/go
 ```
 GO should be installed to a location in the root folder, /usr/local is a good practise.
 
 Don't forget to update your environment with:
 ```
-# GO path
-export GOPATH=${HOME}/go
+# Update environment
 export GOROOT="/usr/local/go"
 export GOBIN=${GOROOT}/bin
-export PATH=${PATH}:${GOBIN}:${GOPATH}/bin
+export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 ```
-Warning: I've added those paths to the sudo environment as well. Since Singularity will require "sudo", I highly
-recommend you do the same. Check "visudo" for that.
+Warning: I highly recommend you to add those paths to the sudo environment as well. 
 
-Now you can compile and install Singularity-3:
+Now you can build Singularity-3:
 ```
-# Create a folder for Singularity repo within GO path
-mkdir -p $GOPATH/src/github.com/sylabs
-cd $GOPATH/src/github.com/sylabs
-
-# Get Singularity-3 
+mkdir -p ${GOPATH}/src/github.com/sylabs
+cd ${GOPATH}/src/github.com/sylabs
 git clone https://github.com/sylabs/singularity.git
 cd singularity
+git checkout v3.3.0
 
-# Install Go dependencies
-go get -u -v github.com/golang/dep/cmd/dep
-
-# Compile the Singularity binary
+### Compile Singularity
 ./mconfig
-make -C builddir 2>&1 | tee log.make
-sudo make -C builddir install 2>&1 | tee log.make.install
+cd builddir
+make
+sudo make install
 ```
 
-## Usage of the OpenFOAM recipe
+## Usage of the OpenFOAM-6 recipe
 One option is to run:
 ```bash
 sudo singularity build openfoam-6.sif Singularity.openfoam6
@@ -95,3 +87,9 @@ One can also directly invoke shell in the container which will be much faster:
 singularity run shub://fertinaz/Singularity-Openfoam
 ```
 This will execute the shell from the image which is located in the singularity-hub collections.
+
+## Usage of the OpenFOAM-7 recipe
+Run command: 
+``` sudo singularity build openfoam-7.sif of7.def ```
+
+This recipe install prerequisites using package manager, however compiles OpenFOAM-7 from its source.
