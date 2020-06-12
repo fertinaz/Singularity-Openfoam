@@ -2,7 +2,8 @@ Bootstrap: docker
 From: centos:7
 
 %help
-    This recipe builds OpenFOAM-7.
+    This recipe provides an OpenFOAM-7 environment installed 
+    with GCC and OpenMPI-3.
 
 %labels
     Author Fatih Ertinaz
@@ -13,17 +14,22 @@ From: centos:7
     yum install -y openmpi3.x86_64 openmpi3-devel
     yum install -y wget git openssl-devel libuuid-devel
 
-    ### Update environment
-    export PATH=$PATH:/lib64/openmpi3/bin
-    export CPATH=/usr/include/openmpi3-x86_64
+    ### Update environment - OpenMPI-3
+    export MPI_DIR=/usr/lib64/openmpi3
+    export MPI_BIN=$MPI_DIR/bin
+    export MPI_LIB=$MPI_DIR/lib
+    export MPI_INC=/usr/include/openmpi3-x86_64
+
+    export PATH=$MPI_BIN:$PATH
+    export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
+    # export CPATH=/usr/include/openmpi3-x86_64
 
     ### OpenFOAM version
     pkg=OpenFOAM
     vrs=7
 
-    ### Install under $HOME/OpenFOAM -- will be changed to /opt
-    mkdir -p $HOME/$pkg
-    cd $HOME/$pkg
+    ### Install under /opt
+    mkdir -p /opt/$pkg && cd /opt/$pkg
 
     ### Download OF
     wget -O - http://dl.openfoam.org/source/$vrs | tar xz
@@ -35,6 +41,9 @@ From: centos:7
 
     ### Change dir to OpenFOAM-version
     cd $pkg-$vrs
+    
+    base=/opt/$pkg
+    sed -i 's,FOAM_INST_DIR=$HOME\/$WM_PROJECT,FOAM_INST_DIR='"$base"',g' etc/bashrc
 
     ### Get rid of unalias otherwise singularity fails
     sed -i 's/alias wmUnset/#alias wmUnset/' etc/config.sh/aliases
@@ -47,11 +56,23 @@ From: centos:7
     ### Compile and install
     ./Allwmake 2>&1 | tee log.Allwmake
 
-    ### Add sourcing to the .bashrc
-    echo '. $HOME/OpenFOAM/OpenFOAM-7/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
+    ### Source bashrc at runtime
+    echo '. /opt/OpenFOAM/OpenFOAM-7/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
 
 %environment
-    . $HOME/OpenFOAM/OpenFOAM-7/etc/bashrc
+    export MPI_DIR=/usr/lib64/openmpi3
+    export MPI_BIN=$MPI_DIR/bin
+    export MPI_LIB=$MPI_DIR/lib
+    export MPI_INC=/usr/include/openmpi3-x86_64
+
+    export PATH=$MPI_BIN:$PATH
+    export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
+
+%test
+    . /opt/OpenFOAM/OpenFOAM-7/etc/bashrc
+    icoFoam -help
 
 %runscript
-    icoFoam -help
+    echo
+    echo "OpenFOAM installation is available under $WM_PROJECT_DIR"
+    echo
