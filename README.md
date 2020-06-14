@@ -4,15 +4,17 @@ This repo contains information about `Singularity` containers and focuses on `Op
 ### Singularity-3.5 installation
 To get going, we need to start with installing `Singularity`. However, to install `Singularity` there are some dependencies we need to install first.
 
-Assuming that running on `Ubuntu`, we need the following prerequisites:
+Assuming that running on `CentOS`, we need the following prerequisites [*]:
 ```
-sudo apt-get update 
-sudo apt-get install -y build-essential uuid-dev \
-    libgpgme-dev squashfs-tools  libseccomp-dev  \
-    wget  pkg-config  git  cryptsetup-bin
+$ sudo yum update -y
+$ sudo yum groupinstall -y 'Development Tools' 
+$ sudo yum install -y openssl-devel libuuid-devel \
+    libseccomp-devel wget squashfs-tools cryptsetup
 ```
+[*]: Singularity Container Documentation, p. 12
+https://sylabs.io/guides/3.5/admin-guide.pdf
 
-Install `GO`
+Now we should install `GO`
 ```
 vrs=1.14.4 # Change version as needed
 os=linux
@@ -25,7 +27,12 @@ sudo tar -C /usr/local -xzf $out
 
 export PATH=/usr/local/go/bin:$PATH
 ```
-
+If everything goes fine, you should be able to see a similar output to the following:
+```
+$ which go && go version
+/usr/local/go/bin/go
+go version go1.14.4 linux/amd64
+```
 Now we can install `Singularity` from a release source:
 ```
 vrs=3.5.2 
@@ -40,40 +47,81 @@ make -C ./builddir
 sudo make -C ./builddir install
 ```
 
-## OpenFOAM usage
+To check the `singularity` command we can run `help`. Output should similar to this:
+```
+$ singularity help
+
+Linux container platform optimized for High Performance Computing (HPC) and
+Enterprise Performance Computing (EPC)
+
+Usage:
+  singularity [global options...]
+
+Description:
+  Singularity containers provide an application virtualization layer enabling
+  mobility of compute via both application and environment portability. With
+  Singularity one is capable of building a root file system that runs on any 
+  other Linux system where Singularity is installed.
+```
+
+Now we are done with the `Singularity` installation and can proceed to `OpenFOAM` containerization.
+
+### OpenFOAM usage
 Since we have `Singularity` ready in our environment, we can now start with the `OpenFOAM` images.
 
-### OpenFOAM recipes: OF-7
-You can build this image by running the following command:
+#### OpenFOAM recipes: OF-7
+This section explains how to use our `of-7` image file starting from scratch.
+
+##### Build image
+You can build `of-7` image by running the following command:
 ```
-sudo singularity build of-7.sif of-7.def 
-```
-Since build takes considerable amount of time, I pushed this image to the singularity hub which can be pulled by:
-```
-singularity pull --arch amd64 library://fertinaz-hpc/openfoam/of-7.sif:latest
+$ sudo singularity build of-7.sif of-7.def 
 ```
 
-The prerequisites installed using package manager, then `OpenFOAM-7` is compiled from its source. Recipe uses `gcc-4.8` and `openmpi-3.1.3` during the compilation. You can access `mpi` related directories such as `bin` and `lib` using environment variables `MPI_BIN` and `MPI_LIB`. Note that the `MPI` version you have on your `HOST` machine should match the version inside the container. 
-
-To install `openmpi-3.1.3` on the host machine, you can use the following snippet:
+##### Pull image
+Build takes considerable amount of time, therefore I pushed this image to the singularity hub which can be pulled by:
 ```
-mkdir -p /opt/openmpi-3.1.3
-wget https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-3.1.3.tar.gz
-tar xf openmpi-3.1.3.tar.gz
-rm -f openmpi-3.1.3.tar.gz
-cd openmpi-3.1.3
-./configure --prefix=/opt/openmpi-3.1.3
+$ singularity pull library://fertinaz-hpc/openfoam/of-7.sif:sha256.87a06205d8f66a4d3c2391e1a8eed8358e85de63588682e398fa81eded65d417
+```
+Normally you shouldn't need the hash, but I've experienced some issues and could not pull it successfully. Specifying the hash resolves that problem, also makes it sure that we pull the right image. 
+
+You can the rename the image by:
+```
+$ mv of-7.sif_sha256.87a06205d8f66a4d3c2391e1a8eed8358e85de63588682e398fa81eded65d417.sif of-7.sif
+```
+Verify the image:
+```
+$ singularity verify of-7.sif
+Container is signed by 1 key(s):
+
+Verifying signature F: 0E10907267D8661988B4CB8266054C750D4C26CF:
+[REMOTE]  Fatih Ertinaz <fertinaz@gmail.com>
+[OK]      Data integrity verified
+
+INFO:    Container verified: of-7.sif
+
+```
+
+##### MPI on host
+Due to a hanging problem in the `openmpi` (see https://github.com/hpcng/singularity/issues/2590), I've manually installed `openmpi-4.0.4` inside the container. Since it is highly suggested to use the same `mpi` version on the host, we need to apply the same installation. You can use the following snippet:
+```
+vrs=4.0.4
+wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-${vrs}.tar.gz
+tar xf openmpi-${vrs}.tar.gz && rm -f openmpi-${vrs}.tar.gz
+cd openmpi-${vrs}
+./configure --prefix=/opt/openmpi-${vrs}  # Change this path as you wish
 sudo make all install
 
-# Update env
-export MPI_DIR=/opt/openmpi-3.1.3
+export MPI_DIR=/opt/openmpi-${vrs}
 export MPI_BIN=$MPI_DIR/bin
 export MPI_LIB=$MPI_DIR/lib
 export MPI_INC=$MPI_DIR/include
+
 export PATH=$MPI_BIN:$PATH
 export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
 ```
 
+##### Run image
 After we make sure that correct `OpenMPI` version is installed on the host machine, we can run the container. First let's try if it works:
 ```
 $ singularity run of-7.sif 
@@ -82,42 +130,12 @@ OpenFOAM installation is available under /opt/OpenFOAM/OpenFOAM-7
 ```
 which states that `OpenFOAM` installation resides under the `/opt/OpenFOAM/OpenFOAM-7` directory as expected. `etc/bashrc` is sourced when container runtime is initiated, therefore you can directly access `OpenFOAM` functionality.
 
-Following example shows running a sample `OpenFOAM` command:
+##### Execute using the container
+Following example shows how to execute a sample `OpenFOAM` command using the container image:
 ```
 $ singularity exec of-7.sif simpleFoam -help
 
 Usage: simpleFoam [OPTIONS]
-options:
-  -case <dir>       specify alternate case directory, default is the cwd
-  -fileHandler <handler>
-                    override the fileHandler
-  -hostRoots <(((host1 dir1) .. (hostN dirN))>
-                    slave root directories (per host) for distributed running
-  -libs <(lib1 .. libN)>
-                    pre-load libraries
-  -listFunctionObjects
-                    List functionObjects
-  -listFvOptions    List fvOptions
-  -listRegisteredSwitches
-                    List switches registered for run-time modification
-  -listScalarBCs    List scalar field boundary conditions (fvPatchField<scalar>)
-  -listSwitches     List switches declared in libraries but not set in
-                    etc/controlDict
-  -listTurbulenceModels
-                    List turbulenceModels
-  -listUnsetSwitches
-                    List switches declared in libraries but not set in
-                    etc/controlDict
-  -listVectorBCs    List vector field boundary conditions (fvPatchField<vector>)
-  -noFunctionObjects
-                    do not execute functionObjects
-  -parallel         run in parallel
-  -postProcess      Execute functionObjects only
-  -roots <(dir1 .. dirN)>
-                    slave root directories for distributed running
-  -srcDoc           display source code in browser
-  -doc              display application documentation in browser
-  -help             print the usage
 
 Using: OpenFOAM-7 (see https://openfoam.org)
 Build: 7
@@ -125,7 +143,7 @@ Build: 7
 
 Let's run a test case using for instance `blockMesh`:
 ```
-~/recipes/motorBike$ ll
+~/demo/motorBike$ ll
 total 32
 drwxrwxr-x 6 vagrant vagrant 4096 Jun 12 03:13 ./
 drwxrwxr-x 3 vagrant vagrant 4096 Jun 12 03:13 ../
@@ -133,12 +151,11 @@ drwxrwxr-x 3 vagrant vagrant 4096 Jun 12 03:13 0/
 -rwxrwxr-x 1 vagrant vagrant  437 Jun 12 03:13 Allclean*
 -rwxrwxr-x 1 vagrant vagrant  644 Jun 12 03:13 Allrun*
 drwxrwxr-x 3 vagrant vagrant 4096 Jun 12 03:13 constant/
-drwxrwxr-x 4 vagrant vagrant 4096 Jun 12 03:13 .svn/
 drwxrwxr-x 2 vagrant vagrant 4096 Jun 12 03:13 system/
 ```
 As it is seen above, I prepared the tutorial case `motorBike` on my local machine and even this is done one a `Vagrant` session. Now I execute `blockMesh` using the container:
 ```
-~/recipes/motorBike$ singularity exec ~/recipes/of-7.sif blockMesh
+~/demo/motorBike$ singularity exec ~/recipes/of-7.sif blockMesh
 ```
 You can see its output
 ```
@@ -217,10 +234,12 @@ Patches
 
 End
 ```
+So we've successfully executed an `OpenFOAM` command using our container.
 
+##### Parallel execution using the container
 Let's finally try a parallel execution using:
 ```
-mpirun -np 4 singularity exec ~/recipes/of-7.sif simpleFoam -parallel
+~/demo/motorBike$ mpirun -np 4 singularity exec ~/recipes/of-7.sif simpleFoam -parallel
 ```
 
-to-be-continued...
+Parallel `simpleFoam` is successfully executed with this command.
