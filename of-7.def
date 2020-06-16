@@ -3,7 +3,7 @@ From: centos:7
 
 %help
     This recipe provides an OpenFOAM-7 environment installed 
-    with GCC and OpenMPI-3.
+    with GCC and OpenMPI-4.
 
 %labels
     Author Fatih Ertinaz
@@ -11,25 +11,34 @@ From: centos:7
 %post
     ### Install prerequisites
     yum groupinstall -y 'Development Tools' 
-    yum install -y openmpi3.x86_64 openmpi3-devel
     yum install -y wget git openssl-devel libuuid-devel
 
-    ### Update environment - OpenMPI-3
-    export MPI_DIR=/usr/lib64/openmpi3
+    ### Install OpenMPI
+    # Why openmpi-4.x is needed: https://github.com/hpcng/singularity/issues/2590
+    vrs=4.0.4
+    wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-${vrs}.tar.gz
+    tar xf openmpi-${vrs}.tar.gz && rm -f openmpi-${vrs}.tar.gz
+    cd openmpi-${vrs}
+    ./configure --prefix=/opt/openmpi-${vrs}
+    make all install
+    make all clean
+
+    ### Update environment - OpenMPI
+    export MPI_DIR=/opt/openmpi-${vrs}
     export MPI_BIN=$MPI_DIR/bin
     export MPI_LIB=$MPI_DIR/lib
-    export MPI_INC=/usr/include/openmpi3-x86_64
+    export MPI_INC=$MPI_DIR/include
 
     export PATH=$MPI_BIN:$PATH
     export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
-    # export CPATH=/usr/include/openmpi3-x86_64
 
     ### OpenFOAM version
     pkg=OpenFOAM
     vrs=7
 
     ### Install under /opt
-    mkdir -p /opt/$pkg && cd /opt/$pkg
+    base=/opt/$pkg
+    mkdir -p $base && cd $base
 
     ### Download OF
     wget -O - http://dl.openfoam.org/source/$vrs | tar xz
@@ -42,28 +51,34 @@ From: centos:7
     ### Change dir to OpenFOAM-version
     cd $pkg-$vrs
     
-    base=/opt/$pkg
-    sed -i 's,FOAM_INST_DIR=$HOME\/$WM_PROJECT,FOAM_INST_DIR='"$base"',g' etc/bashrc
-
     ### Get rid of unalias otherwise singularity fails
+    sed -i 's,FOAM_INST_DIR=$HOME\/$WM_PROJECT,FOAM_INST_DIR='"$base"',g' etc/bashrc
     sed -i 's/alias wmUnset/#alias wmUnset/' etc/config.sh/aliases
     sed -i '77s/else/#else/' etc/config.sh/aliases
     sed -i 's/unalias wmRefresh/#unalias wmRefresh/' etc/config.sh/aliases
 
-    ### Source OF
-    . etc/bashrc 
-
     ### Compile and install
+    . etc/bashrc 
     ./Allwmake 2>&1 | tee log.Allwmake
+
+    ### Clean-up environment
+    rm -rf platforms/$WM_OPTIONS/applications
+    rm -rf platforms/$WM_OPTIONS/src
+
+    cd $base/ThirdParty-$vrs
+    rm -rf build
+    rm -rf gcc-* gmp-* mpfr-* binutils-* boost* ParaView-* qt-*
+
+    strip $FOAM_APPBIN/*
 
     ### Source bashrc at runtime
     echo '. /opt/OpenFOAM/OpenFOAM-7/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
 
 %environment
-    export MPI_DIR=/usr/lib64/openmpi3
+    export MPI_DIR=/opt/openmpi-4.0.4
     export MPI_BIN=$MPI_DIR/bin
     export MPI_LIB=$MPI_DIR/lib
-    export MPI_INC=/usr/include/openmpi3-x86_64
+    export MPI_INC=$MPI_DIR/include
 
     export PATH=$MPI_BIN:$PATH
     export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
