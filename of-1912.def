@@ -1,0 +1,107 @@
+Bootstrap: docker
+From: centos:7
+
+%help
+    This container image provides an OpenFOAM-v1912 environment installed 
+    with GCC and OpenMPI-4.
+
+%labels
+    Author Fatih Ertinaz
+    Package OpenFOAM-v1912
+
+%post
+    ### Install prerequisites
+    yum groupinstall -y 'Development Tools' &&  \
+    yum install -y epel-release  wget git       \
+                   openssl-devel libuuid-devel  \
+                   metis.x86_64 metis-devel.x86_64
+
+    ### Install OpenMPI
+    # Why openmpi-4.x is needed: https://github.com/hpcng/singularity/issues/2590
+    mkdir -p ~/openmpi && cd ~/openmpi
+    vrs=4.0.4
+    wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-${vrs}.tar.gz
+    tar xf openmpi-${vrs}.tar.gz && rm -f openmpi-${vrs}.tar.gz
+    cd openmpi-${vrs}
+    ./configure --prefix=/opt/openmpi-${vrs}
+    make all install
+    make all clean
+
+    ### Update environment - OpenMPI-4
+    export MPI_DIR=/opt/openmpi-4.0.4 >> $SINGULARITY_ENVIRONMENT
+    export MPI_BIN=$MPI_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export MPI_LIB=$MPI_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export MPI_INC=$MPI_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+    # export CPATH=/usr/include/openmpi3-x86_64
+
+    ### OpenFOAM version
+    pkg=OpenFOAM
+    vrs=v1912
+
+    ### Install under /opt
+    base=/opt/$pkg
+    mkdir -p $base && cd $base
+
+    ### Download OF
+    wget https://sourceforge.net/projects/$pkg/files/$vrs/$pkg-$vrs.tgz
+    tar -xzf $pkg-$vrs.tgz
+    rm -f $pkg-$vrs.tgz
+
+    ### Download ThirdParty
+    wget https://sourceforge.net/projects/$pkg/files/$vrs/ThirdParty-$vrs.tgz
+    tar -xzf ThirdParty-$vrs.tgz
+    rm -f ThirdParty-$vrs.tgz
+
+    ### Change dir to OpenFOAM-version
+    cd $pkg-$vrs
+    
+    # sed -i 's,FOAM_INST_DIR=$HOME\/$WM_PROJECT,FOAM_INST_DIR='"$base"',g' etc/bashrc
+
+    # ln -s /usr/bin/cmake3 /usr/bin/cmake
+    sed -i 's/boost_version=boost_1_64_0/boost_version=boost-none/' etc/config.sh/CGAL
+    sed -i 's/cgal_version=CGAL-4.9.1/cgal_version=cgal-none/' etc/config.sh/CGAL
+    # sed -i 's/fftw_version=fftw-3.3.7/fftw_version=fftw-none/' etc/config.sh/FFTW
+    sed -i 's/gperftools_version=gperftools-2.5/gperftools_version=gperftools-none/' etc/config.sh/gperftools
+    sed -i 's/hypre_version=hypre-2.11.2/hypre_version=hypre-none/' etc/config.sh/hypre
+    sed -i 's/KAHIP_VERSION=kahip-2.12/KAHIP_VERSION=kahip-none/' etc/config.sh/kahip
+    sed -i 's/METIS_VERSION=metis-5.1.0/METIS_VERSION=metis-system/' etc/config.sh/metis
+    sed -i 's/MGRIDGEN_VERSION=ParMGridGen-1.0/MGRIDGEN_VERSION=mgridgen-none/' etc/config.sh/mgridgen
+    sed -i 's/ParaView_VERSION=5.6.3/ParaView_VERSION=none/' etc/config.sh/paraview
+    sed -i 's/petsc_version=petsc-3.9.3/petsc_version=petsc-none/' etc/config.sh/petsc
+
+    export MPI_ARCH_PATH=$MPI_DIR >> $SINGULARITY_ENVIRONMENT
+
+    ### Source OF
+    set +eu
+    . etc/bashrc 
+
+    ### Compile and install
+    ./Allwmake
+
+    rm -rf build
+
+    cd $base/ThirdParty-$vrs
+    rm -rf build
+    rm -rf boost_1_64_0 CGAL-4.9.1 fftw-3.3.7 kahip-2.12 openmpi-1.10.7 ParaView-v5.6.3 scotch_6.0.9
+
+    strip $FOAM_APPBIN/*
+
+    ### Source bashrc at runtime
+    echo '. /opt/OpenFOAM/OpenFOAM-v1912/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
+
+%environment
+    export MPI_DIR=/opt/openmpi-4.0.4
+    export MPI_BIN=$MPI_DIR/bin
+    export MPI_LIB=$MPI_DIR/lib
+    export MPI_INC=$MPI_DIR/include
+
+    export PATH=$MPI_BIN:$PATH
+    export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
+
+%runscript
+    echo
+    echo "OpenFOAM installation is available under $WM_PROJECT_DIR"
+    echo
