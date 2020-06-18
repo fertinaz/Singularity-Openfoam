@@ -1,0 +1,119 @@
+Bootstrap: docker
+From: centos:7
+
+%help
+    This container image provides a FoamExtend-4.1 environment installed 
+    with GCC and OpenMPI-4.
+
+%labels
+    Author Fatih Ertinaz
+    Package OpenFOAM-v1912
+
+%post
+    ### Install prerequisites
+    yum groupinstall -y 'Development Tools' &&  \
+    yum install -y wget git  \
+                   openssl-devel libuuid-devel  \
+                   metis.x86_64 metis-devel.x86_64
+
+    ### Install OpenMPI with UCX enabled
+    mkdir -p ~/ucx && cd ~/ucx
+    https://github.com/openucx/ucx/releases/download/v1.8.0/ucx-1.8.0.tar.gz
+    tar xf ucx-1.8.0.tar.gz && rm -f ucx-1.8.0.tar.gz
+    cd ucx-1.8.0
+    ./configure --prefix=/opt/ucx-1.8.0
+    make && make install
+
+    mkdir -p ~/openmpi && cd ~/openmpi
+    vrs=3.1.6
+    wget https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-${vrs}.tar.gz
+    tar xf openmpi-${vrs}.tar.gz && rm -f openmpi-${vrs}.tar.gz
+    cd openmpi-${vrs}
+    ./configure --with-ucx=/opt/ucx-1.8.0 --prefix=/opt/openmpi-${vrs}
+    make all install
+    make all clean
+    rm -rf ~/openmpi
+
+    ### Update environment - OpenMPI-3
+    export MPI_DIR=/opt/openmpi-3.1.6 >> $SINGULARITY_ENVIRONMENT
+    export MPI_BIN=$MPI_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export MPI_LIB=$MPI_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export MPI_INC=$MPI_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export UCX_DIR=/opt/UCX-1.8.0 >> $SINGULARITY_ENVIRONMENT
+    export UCX_BIN=$UCX_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export UCX_LIB=$UCX_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export UCX_INC=$UCX_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$UCX_BIN:$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$UCX_LIB:$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    ### OpenFOAM version
+    prj="foam"
+    fork="extend"
+    vrs="4.1"
+    pkg=$prj-$fork-$vrs
+
+    cd /opt
+    git clone git://git.code.sf.net/p/foam-extend/$pkg $pkg
+    cd $pkg
+
+    base=/opt/$pkg    
+    sed -i 's,foamInstall=$HOME\/$WM_PROJECT,foamInstall='"$base"',' etc/bashrc 
+
+    # Changes in etc/bashrc - stage 1
+    sed -i "s/#export WM_THIRD_PARTY_USE_CMAKE_322=1/export WM_THIRD_PARTY_USE_CMAKE_322=1/" etc/bashrc
+
+    # Changes in etc/bashrc - stage 2
+    sed -i "s/export WM_THIRD_PARTY_USE_OPENMPI_188=1/#export WM_THIRD_PARTY_USE_OPENMPI_188=1/" etc/bashrc
+
+    # Changes in etc/bashrc - stage 3
+    sed -i "s/export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/#export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/" etc/bashrc
+    sed -i "s/export WM_THIRD_PARTY_USE_MESQUITE_230=1/#export WM_THIRD_PARTY_USE_MESQUITE_230=1/" etc/bashrc
+    sed -i "s/export WM_THIRD_PARTY_USE_PYFOAM_069=1/#export WM_THIRD_PARTY_USE_PYFOAM_069=1/" etc/bashrc
+
+    cp etc/prefs.sh-EXAMPLE etc/prefs.sh
+
+    ## Change OpenMPI in prefs.sh
+    sed -i "s/#export WM_MPLIB=SYSTEMOPENMPI/export WM_MPLIB=SYSTEMOPENMPI/" etc/prefs.sh
+    sed -i 's,#export OPENMPI_DIR=path_to_system_installed_openmpi,export OPENMPI_DIR='"$MPI_DIR"',' etc/prefs.sh
+    sed -i 's,#export OPENMPI_BIN_DIR="$OPENMPI_DIR"\/bin,export OPENMPI_BIN_DIR='"$MPI_BIN"',' etc/prefs.sh
+
+    export OPENMPI_DIR=$MPI_DIR >> $SINGULARITY_ENVIRONMENT
+
+    ### Source OF
+    set +eu
+    . etc/bashrc 
+
+    ### Compile and install
+    ./Allwmake
+
+    # rm -rf build
+
+    # cd $base/ThirdParty-$vrs
+    # rm -rf build
+    # rm -rf boost_1_64_0 CGAL-4.9.1 fftw-3.3.7 kahip-2.12 openmpi-1.10.7 ParaView-v5.6.3 scotch_6.0.9
+
+    # strip $FOAM_APPBIN/*
+
+    ### Source bashrc at runtime
+    echo '. /opt/foam-extend-4.1/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
+
+%environment
+    export MPI_DIR=/opt/openmpi-3.1.6 >> $SINGULARITY_ENVIRONMENT
+    export MPI_BIN=$MPI_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export MPI_LIB=$MPI_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export MPI_INC=$MPI_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export UCX_DIR=/opt/UCX-1.8.0 >> $SINGULARITY_ENVIRONMENT
+    export UCX_BIN=$UCX_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export UCX_LIB=$UCX_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export UCX_INC=$UCX_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$UCX_BIN:$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$UCX_LIB:$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+%runscript
+    echo
+    echo "Foam-Extend installation is available under $WM_PROJECT_DIR"
+    echo
