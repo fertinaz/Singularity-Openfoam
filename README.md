@@ -236,10 +236,35 @@ End
 ```
 So we've successfully executed an `OpenFOAM` command using our container.
 
-##### Parallel execution using the container
+##### Parallel execution
 Let's finally try a parallel execution using:
 ```
 ~/demo/motorBike$ mpirun -np 4 singularity exec ~/recipes/of-7.sif simpleFoam -parallel
 ```
 
 Parallel `simpleFoam` is successfully executed with this command.
+
+#### OpenFOAM recipes: OF-1912
+Similar to the `of-7`, `openfoam-1912` image also sources `$WM_PROJECT_DIR/etc/bashrc` during runtime initiation. Therefore, users can access `OpenFOAM` related functionality without sourcing `bashrc` file in their commands and scripts.
+
+In addition to the `scotch`, two third party tools are enabled in this image: `FFTW` and `metis`. If you check the definition file `of-1912.def`, you can see that `FFTW` is compiled from its source as a part of the ThirdParty installation by `OpenFOAM`. However, I installed `metis` by using the package manager.
+
+You can pull this image with the following command:
+```
+singularity pull --arch amd64 library://fertinaz-hpc/openfoam/openfoam-1912:latest
+```
+
+Usage is exactly same as the detailed instructions provided for `of-7`. 
+
+You can also use the `Allrun` script given in the demo `motorBike`. Just changing the name of the image should suffice:
+```
+export IMAGE_NAME=openfoam-1912.sif
+
+singularity exec $IMAGE_NAME surfaceFeatures
+singularity exec $IMAGE_NAME blockMesh
+singularity exec $IMAGE_NAME decomposePar -copyZero
+
+mpirun -np 4 singularity exec $IMAGE_NAME snappyHexMesh -overwrite parallel
+mpirun -np 4 singularity exec $IMAGE_NAME potentialFoam -parallel
+mpirun -np 4 singularity exec $IMAGE_NAME simpleFoam -parallel
+```
