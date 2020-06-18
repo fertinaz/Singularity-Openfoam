@@ -12,7 +12,7 @@ From: centos:7
 %post
     ### Install prerequisites
     yum groupinstall -y 'Development Tools' &&  \
-    yum install -y epel-release  wget git       \
+    yum install -y wget git  \
                    openssl-devel libuuid-devel  \
                    metis.x86_64 metis-devel.x86_64
 
@@ -26,6 +26,7 @@ From: centos:7
     ./configure --prefix=/opt/openmpi-${vrs}
     make all install
     make all clean
+    rm -rf ~/openmpi
 
     ### Update environment - OpenMPI-4
     export MPI_DIR=/opt/openmpi-4.0.4 >> $SINGULARITY_ENVIRONMENT
@@ -35,7 +36,6 @@ From: centos:7
 
     export PATH=$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
     export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
-    # export CPATH=/usr/include/openmpi3-x86_64
 
     ### OpenFOAM version
     pkg=OpenFOAM
@@ -58,9 +58,6 @@ From: centos:7
     ### Change dir to OpenFOAM-version
     cd $pkg-$vrs
     
-    # sed -i 's,FOAM_INST_DIR=$HOME\/$WM_PROJECT,FOAM_INST_DIR='"$base"',g' etc/bashrc
-
-    # ln -s /usr/bin/cmake3 /usr/bin/cmake
     sed -i 's/boost_version=boost_1_64_0/boost_version=boost-none/' etc/config.sh/CGAL
     sed -i 's/cgal_version=CGAL-4.9.1/cgal_version=cgal-none/' etc/config.sh/CGAL
     # sed -i 's/fftw_version=fftw-3.3.7/fftw_version=fftw-none/' etc/config.sh/FFTW
