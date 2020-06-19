@@ -3,50 +3,56 @@ From: centos:7
 
 %help
     This container image provides a FoamExtend-4.1 environment installed 
-    with GCC and OpenMPI-4.
+    with GCC and OpenMPI-4 with UCX enabled.
 
 %labels
     Author Fatih Ertinaz
-    Package OpenFOAM-v1912
+    Package FoamExtend-4.1
 
 %post
     ### Install prerequisites
     yum groupinstall -y 'Development Tools' &&  \
-    yum install -y wget git  \
+    yum install -y wget git which \
+                   numactl-devel.x86_64 \
                    openssl-devel libuuid-devel  \
                    metis.x86_64 metis-devel.x86_64
 
     ### Install OpenMPI with UCX enabled
     mkdir -p ~/ucx && cd ~/ucx
-    https://github.com/openucx/ucx/releases/download/v1.8.0/ucx-1.8.0.tar.gz
-    tar xf ucx-1.8.0.tar.gz && rm -f ucx-1.8.0.tar.gz
-    cd ucx-1.8.0
-    ./configure --prefix=/opt/ucx-1.8.0
+    vrs=1.8.0
+    wget https://github.com/openucx/ucx/releases/download/v1.8.0/ucx-$vrs.tar.gz
+    tar xf ucx-$vrs.tar.gz && rm -f ucx-$vrs.tar.gz && cd ucx-$vrs
+    mkdir build && cd build && ../configure --prefix=/opt/ucx-$vrs
     make && make install
+    rm -rf ~/ucx
 
     mkdir -p ~/openmpi && cd ~/openmpi
-    vrs=3.1.6
-    wget https://download.open-mpi.org/release/open-mpi/v3.1/openmpi-${vrs}.tar.gz
+    vrs=4.0.4
+    wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-${vrs}.tar.gz
     tar xf openmpi-${vrs}.tar.gz && rm -f openmpi-${vrs}.tar.gz
-    cd openmpi-${vrs}
-    ./configure --with-ucx=/opt/ucx-1.8.0 --prefix=/opt/openmpi-${vrs}
+    cd openmpi-${vrs} && mkdir build-ucx && cd build-ucx 
+    ../configure --with-ucx=/opt/ucx-1.8.0 --prefix=/opt/openmpi-${vrs}
     make all install
     make all clean
     rm -rf ~/openmpi
 
-    ### Update environment - OpenMPI-3
-    export MPI_DIR=/opt/openmpi-3.1.6 >> $SINGULARITY_ENVIRONMENT
-    export MPI_BIN=$MPI_DIR/bin >> $SINGULARITY_ENVIRONMENT
-    export MPI_LIB=$MPI_DIR/lib >> $SINGULARITY_ENVIRONMENT
-    export MPI_INC=$MPI_DIR/include >> $SINGULARITY_ENVIRONMENT
-
-    export UCX_DIR=/opt/UCX-1.8.0 >> $SINGULARITY_ENVIRONMENT
+    ### Update environment - UCX
+    export UCX_DIR=/opt/ucx-1.8.0 >> $SINGULARITY_ENVIRONMENT
     export UCX_BIN=$UCX_DIR/bin >> $SINGULARITY_ENVIRONMENT
     export UCX_LIB=$UCX_DIR/lib >> $SINGULARITY_ENVIRONMENT
     export UCX_INC=$UCX_DIR/include >> $SINGULARITY_ENVIRONMENT
 
-    export PATH=$UCX_BIN:$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
-    export LD_LIBRARY_PATH=$UCX_LIB:$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+    export PATH=$UCX_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$UCX_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    ### Update environment - OpenMPI-4
+    export MPI_DIR=/opt/openmpi-4.0.4 >> $SINGULARITY_ENVIRONMENT
+    export MPI_BIN=$MPI_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export MPI_LIB=$MPI_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export MPI_INC=$MPI_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
 
     ### OpenFOAM version
     prj="foam"
@@ -54,15 +60,15 @@ From: centos:7
     vrs="4.1"
     pkg=$prj-$fork-$vrs
 
-    cd /opt
+    base=/opt/foam
+    mkdir -p $base && cd $base
     git clone git://git.code.sf.net/p/foam-extend/$pkg $pkg
     cd $pkg
 
-    base=/opt/$pkg    
     sed -i 's,foamInstall=$HOME\/$WM_PROJECT,foamInstall='"$base"',' etc/bashrc 
 
     # Changes in etc/bashrc - stage 1
-    sed -i "s/#export WM_THIRD_PARTY_USE_CMAKE_322=1/export WM_THIRD_PARTY_USE_CMAKE_322=1/" etc/bashrc
+    sed -i "s/#export WM_THIRD_PARTY_USE_CMAKE_322=1/export WM_THIRD_PARTY_USE_CMAKE_3114=1/" etc/bashrc
 
     # Changes in etc/bashrc - stage 2
     sed -i "s/export WM_THIRD_PARTY_USE_OPENMPI_188=1/#export WM_THIRD_PARTY_USE_OPENMPI_188=1/" etc/bashrc
@@ -78,6 +84,12 @@ From: centos:7
     sed -i "s/#export WM_MPLIB=SYSTEMOPENMPI/export WM_MPLIB=SYSTEMOPENMPI/" etc/prefs.sh
     sed -i 's,#export OPENMPI_DIR=path_to_system_installed_openmpi,export OPENMPI_DIR='"$MPI_DIR"',' etc/prefs.sh
     sed -i 's,#export OPENMPI_BIN_DIR="$OPENMPI_DIR"\/bin,export OPENMPI_BIN_DIR='"$MPI_BIN"',' etc/prefs.sh
+
+    sed -i "s/export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/#export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/" etc/prefs.sh
+    sed -i "s/export WM_THIRD_PARTY_USE_MESQUITE_230=1/#export WM_THIRD_PARTY_USE_MESQUITE_230=1/" etc/prefs.sh
+    sed -i "s/export WM_THIRD_PARTY_USE_PYFOAM_069=1/#export WM_THIRD_PARTY_USE_PYFOAM_069=1/" etc/prefs.sh
+    sed -i "s/export WM_THIRD_PARTY_USE_QT_486=1/#export WM_THIRD_PARTY_USE_QT_486=1/" etc/prefs.sh
+    sed -i "s/export WM_THIRD_PARTY_USE_PARAVIEW_440=1/#export WM_THIRD_PARTY_USE_PARAVIEW_440=1/" etc/prefs.sh
 
     export OPENMPI_DIR=$MPI_DIR >> $SINGULARITY_ENVIRONMENT
 
@@ -97,21 +109,24 @@ From: centos:7
     # strip $FOAM_APPBIN/*
 
     ### Source bashrc at runtime
-    echo '. /opt/foam-extend-4.1/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
+    echo '. /opt/foam/foam-extend-4.1/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
 
 %environment
-    export MPI_DIR=/opt/openmpi-3.1.6 >> $SINGULARITY_ENVIRONMENT
-    export MPI_BIN=$MPI_DIR/bin >> $SINGULARITY_ENVIRONMENT
-    export MPI_LIB=$MPI_DIR/lib >> $SINGULARITY_ENVIRONMENT
-    export MPI_INC=$MPI_DIR/include >> $SINGULARITY_ENVIRONMENT
-
-    export UCX_DIR=/opt/UCX-1.8.0 >> $SINGULARITY_ENVIRONMENT
+    export UCX_DIR=/opt/ucx-1.8.0 >> $SINGULARITY_ENVIRONMENT
     export UCX_BIN=$UCX_DIR/bin >> $SINGULARITY_ENVIRONMENT
     export UCX_LIB=$UCX_DIR/lib >> $SINGULARITY_ENVIRONMENT
     export UCX_INC=$UCX_DIR/include >> $SINGULARITY_ENVIRONMENT
 
-    export PATH=$UCX_BIN:$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
-    export LD_LIBRARY_PATH=$UCX_LIB:$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+    export PATH=$UCX_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$UCX_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    export MPI_DIR=/opt/openmpi-4.0.4 >> $SINGULARITY_ENVIRONMENT
+    export MPI_BIN=$MPI_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export MPI_LIB=$MPI_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export MPI_INC=$MPI_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
 
 %runscript
     echo
