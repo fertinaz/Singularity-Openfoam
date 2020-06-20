@@ -12,7 +12,7 @@ From: centos:7
 %post
     ### Install prerequisites
     yum groupinstall -y 'Development Tools' &&  \
-    yum install -y wget git which \
+    yum install -y wget git which cmake \
                    numactl-devel.x86_64 \
                    openssl-devel libuuid-devel  \
                    metis.x86_64 metis-devel.x86_64
@@ -54,6 +54,119 @@ From: centos:7
     export PATH=$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
     export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
 
+    ### Install third-party tools manually
+    mkdir -p ~/tools
+    
+    ### Metis
+    cd ~/tools && mkdir metis && cd metis 
+    wget http://downloads.sourceforge.net/project/foam-extend/ThirdParty/metis-5.1.0.tar.gz
+    tar xf metis-5.1.0.tar.gz && rm -f metis-5.1.0.tar.gz && cd metis-5.1.0
+    make config shared=1 prefix=/opt/metis-5.1.0 
+    make && make install 
+    make distclean
+
+    export METIS_DIR=/opt/metis-5.1.0 >> $SINGULARITY_ENVIRONMENT
+    export METIS_BIN=$METIS_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export METIS_LIB=$METIS_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export METIS_INC=$METIS_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$METIS_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$METIS_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    ### ParMGridGen: Doesn't support --prefix
+    cd /opt && mkdir ParMGridGen && cd ParMGridGen
+    wget http://downloads.sourceforge.net/project/foam-extend/ThirdParty/ParMGridGen-1.0.tar.gz
+    rm -f ParMGridGen-1.0.tar.gz && cd ParMGridGen-1.0
+    make parallel
+    
+    export PARMGRIDGEN_DIR=/opt/ParMGridGen/ParMGridGen-1.0 >> $SINGULARITY_ENVIRONMENT
+    export PARMGRIDGEN_BIN=$PARMGRIDGEN_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export PARMGRIDGEN_LIB=$PARMGRIDGEN_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export PARMGRIDGEN_INC=$PARMGRIDGEN_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$PARMGRIDGEN_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$PARMGRIDGEN_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    ### Mesquite
+    cd ~/tools && mkdir mesquite && cd mesquite
+    wget https://software.sandia.gov/mesquite/mesquite-2.3.0.tar.gz 
+    tar xf mesquite-2.3.0.tar.gz  && rm -f mesquite-2.3.0.tar.gz 
+    cd mesquite-2.3.0 
+    ./configure --prefix=/opt/mesquite-2.3.0
+    make && make install
+
+    export MESQUITE_DIR=/opt/mesquite-2.3.0 >> $SINGULARITY_ENVIRONMENT
+    export MESQUITE_BIN=$MESQUITE_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export MESQUITE_LIB=$MESQUITE_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export MESQUITE_INC=$MESQUITE_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$MESQUITE_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$MESQUITE_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    ### Scotch
+    cd ~/tools && mkdir scotch && cd scotch
+    wget http://downloads.sourceforge.net/project/foam-extend/ThirdParty/scotch_6.0.4.tar.gz
+    tar xf scotch_6.0.4.tar.gz && rm -f scotch_6.0.4.tar.gz && cd scotch_6.0.4
+    cd src && cp Make.inc/Makefile.inc.x86-64_pc_linux2 Make.inc
+    make scotch   && make prefix=/opt/scotch install
+    make ptscotch && make prefix=/opt/scotch install
+
+    export SCOTCH_DIR=/opt/scotch >> $SINGULARITY_ENVIRONMENT
+    export SCOTCH_BIN=$SCOTCH_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export SCOTCH_LIB=$SCOTCH_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export SCOTCH_INC=$SCOTCH_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$SCOTCH_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$SCOTCH_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    # Parmetis
+    cd ~/tools && mkdir parmetis && cd parmetis
+    wget http://glaros.dtc.umn.edu/gkhome/fetch/sw/parmetis/parmetis-4.0.3.tar.gz
+    tar xf parmetis-4.0.3.tar.gz && rm -f parmetis-4.0.3.tar.gz && cd parmetis-4.0.3
+    make config shared=1 prefix=/opt/parmetis-4.0.3 
+    make && make install 
+    make distclean
+
+    export PARMETIS_DIR=/opt/parmetis-4.0.3 >> $SINGULARITY_ENVIRONMENT
+    export PARMETIS_BIN=$PARMETIS_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export PARMETIS_LIB=$PARMETIS_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export PARMETIS_INC=$PARMETIS_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$PARMETIS_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$PARMETIS_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    ### Zoltan
+    cd ~/tools && mkdir zoltan && cd zoltan
+    wget http://www.cs.sandia.gov/~kddevin/Zoltan_Distributions/zoltan_distrib_v3.6.tar.gz
+    tar xf zoltan_distrib_v3.6.tar.gz && rm -f zoltan_distrib_v3.6.tar.gz && cd Zoltan_v3.6
+    mkdir build && cd build
+    ../configure --prefix=/opt/zoltan-3.6 \
+    --with-scotch   --with-scotch-incdir=$SCOTCH_INC     --with-scotch-libdir=$SCOTCH_LIB  \
+    --with-parmetis --with-parmetis-incdir=$PARMETIS_INC --with-parmetis-libdir=$PARMETIS_LIB
+    make everything && make install
+
+    export ZOLTAN_DIR=/opt/zoltan-3.6 >> $SINGULARITY_ENVIRONMENT
+    export ZOLTAN_BIN=$ZOLTAN_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export ZOLTAN_LIB=$ZOLTAN_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export ZOLTAN_INC=$ZOLTAN_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$ZOLTAN_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$ZOLTAN_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    ## hwloc
+    cd ~/tools && mkdir hwloc && cd hwloc
+    wget http://www.open-mpi.org/software/hwloc/v2.0/downloads/hwloc-2.0.1.tar.gz
+    tar xf hwloc-2.0.1.tar.gz && rm -f hwloc-2.0.1.tar.gz && cd hwloc-2.0.1
+    ./configure --prefix=/opt/hwloc-2.0.1 && make && make install
+
+    export HWLOC_DIR=/opt/hwloc-2.0.1 >> $SINGULARITY_ENVIRONMENT
+    export HWLOC_BIN=$HWLOC_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export HWLOC_LIB=$HWLOC_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export HWLOC_INC=$HWLOC_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$HWLOC_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$HWLOC_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
     ### OpenFOAM version
     prj="foam"
     fork="extend"
@@ -67,29 +180,74 @@ From: centos:7
 
     sed -i 's,foamInstall=$HOME\/$WM_PROJECT,foamInstall='"$base"',' etc/bashrc 
 
+    # http://downloads.sourceforge.net/project/foam-extend/ThirdParty/libccmio-2.6.1.tar.gz
+
     # Changes in etc/bashrc - stage 1
-    sed -i "s/#export WM_THIRD_PARTY_USE_CMAKE_322=1/export WM_THIRD_PARTY_USE_CMAKE_3114=1/" etc/bashrc
+    # sed -i "s/#export WM_THIRD_PARTY_USE_CMAKE_322=1/export WM_THIRD_PARTY_USE_CMAKE_3114=1/" etc/bashrc
 
     # Changes in etc/bashrc - stage 2
-    sed -i "s/export WM_THIRD_PARTY_USE_OPENMPI_188=1/#export WM_THIRD_PARTY_USE_OPENMPI_188=1/" etc/bashrc
+    # sed -i "s/export WM_THIRD_PARTY_USE_OPENMPI_188=1/#export WM_THIRD_PARTY_USE_OPENMPI_188=1/" etc/bashrc
 
     # Changes in etc/bashrc - stage 3
-    sed -i "s/export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/#export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/" etc/bashrc
-    sed -i "s/export WM_THIRD_PARTY_USE_MESQUITE_230=1/#export WM_THIRD_PARTY_USE_MESQUITE_230=1/" etc/bashrc
-    sed -i "s/export WM_THIRD_PARTY_USE_PYFOAM_069=1/#export WM_THIRD_PARTY_USE_PYFOAM_069=1/" etc/bashrc
+    # sed -i "s/export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/#export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/" etc/bashrc
+    # sed -i "s/export WM_THIRD_PARTY_USE_MESQUITE_230=1/#export WM_THIRD_PARTY_USE_MESQUITE_230=1/" etc/bashrc
+    # sed -i "s/export WM_THIRD_PARTY_USE_PYFOAM_069=1/#export WM_THIRD_PARTY_USE_PYFOAM_069=1/" etc/bashrc
 
     cp etc/prefs.sh-EXAMPLE etc/prefs.sh
 
-    ## Change OpenMPI in prefs.sh
+    ### Change OpenMPI in prefs.sh
     sed -i "s/#export WM_MPLIB=SYSTEMOPENMPI/export WM_MPLIB=SYSTEMOPENMPI/" etc/prefs.sh
     sed -i 's,#export OPENMPI_DIR=path_to_system_installed_openmpi,export OPENMPI_DIR='"$MPI_DIR"',' etc/prefs.sh
     sed -i 's,#export OPENMPI_BIN_DIR="$OPENMPI_DIR"\/bin,export OPENMPI_BIN_DIR='"$MPI_BIN"',' etc/prefs.sh
 
-    sed -i "s/export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/#export WM_THIRD_PARTY_USE_LIBCCMIO_261=1/" etc/prefs.sh
-    sed -i "s/export WM_THIRD_PARTY_USE_MESQUITE_230=1/#export WM_THIRD_PARTY_USE_MESQUITE_230=1/" etc/prefs.sh
-    sed -i "s/export WM_THIRD_PARTY_USE_PYFOAM_069=1/#export WM_THIRD_PARTY_USE_PYFOAM_069=1/" etc/prefs.sh
-    sed -i "s/export WM_THIRD_PARTY_USE_QT_486=1/#export WM_THIRD_PARTY_USE_QT_486=1/" etc/prefs.sh
-    sed -i "s/export WM_THIRD_PARTY_USE_PARAVIEW_440=1/#export WM_THIRD_PARTY_USE_PARAVIEW_440=1/" etc/prefs.sh
+    ### Mesquite
+    sed -i "s/#export MESQUITE_SYSTEM=1/export MESQUITE_SYSTEM=1/" etc/prefs.sh
+    sed -i "s/#export MESQUITE_DIR=path_to_system_installed_mesquite/export MESQUITE_DIR=$MESQUITE_DIR/" etc/prefs.sh
+    sed -i "s,#export MESQUITE_BIN_DIR=$MESQUITE_DIR/bin,export MESQUITE_BIN_DIR=$MESQUITE_BIN," etc/prefs.sh
+    sed -i "s,#export MESQUITE_LIB_DIR=$MESQUITE_DIR/lib,export MESQUITE_LIB_DIR=$MESQUITE_LIB," etc/prefs.sh
+    sed -i "s,#export MESQUITE_INCLUDE_DIR=$MESQUITE_DIR/include,export MESQUITE_INCLUDE_DIR=$MESQUITE_INC," etc/prefs.sh
+
+    ### Metis
+    sed -i "s/#export METIS_SYSTEM=1/export METIS_SYSTEM=1/" etc/prefs.sh
+    sed -i "s/#export METIS_DIR=path_to_system_installed_metis/export METIS_DIR=$METIS_DIR/" etc/prefs.sh
+    sed -i "s,#export METIS_BIN_DIR=$METIS_DIR/bin,export METIS_BIN_DIR=$METIS_BIN," etc/prefs.sh
+    sed -i "s,#export METIS_LIB_DIR=$METIS_DIR/lib,export METIS_LIB_DIR=$METIS_LIB," etc/prefs.sh
+    sed -i "s,#export METIS_INCLUDE_DIR=$METIS_DIR/include,export METIS_INCLUDE_DIR=$METIS_INC," etc/prefs.sh
+
+    ### Parmetis
+    sed -i "s/#export PARMETIS_SYSTEM=1/export PARMETIS_SYSTEM=1/" etc/prefs.sh
+    sed -i "s/#export PARMETIS_DIR=path_to_system_installed_parmetis/export PARMETIS_DIR=$PARMETIS_DIR/" etc/prefs.sh
+    sed -i "s,#export PARMETIS_BIN_DIR=$PARMETIS_DIR/bin,export PARMETIS_BIN_DIR=$PARMETIS_BIN," etc/prefs.sh
+    sed -i "s,#export PARMETIS_LIB_DIR=$PARMETIS_DIR/lib,export PARMETIS_LIB_DIR=$PARMETIS_LIB," etc/prefs.sh
+    sed -i "s,#export PARMETIS_INCLUDE_DIR=$PARMETIS_DIR/include,export PARMETIS_INCLUDE_DIR=$PARMETIS_INC," etc/prefs.sh
+
+    ### ParMGridgen
+    sed -i "s/#export PARMGRIDGEN_SYSTEM=1/export PARMGRIDGEN_SYSTEM=1/" etc/prefs.sh
+    sed -i "s/#export PARMGRIDGEN_DIR=path_to_system_installed_parmgridgen/export PARMGRIDGEN_DIR=$PARMGRIDGEN_DIR/" etc/prefs.sh
+    sed -i "s,#export PARMGRIDGEN_BIN_DIR=$PARMGRIDGEN_DIR/bin,export PARMGRIDGEN_BIN_DIR=$PARMGRIDGEN_BIN," etc/prefs.sh
+    sed -i "s,#export PARMGRIDGEN_LIB_DIR=$PARMGRIDGEN_DIR/lib,export PARMGRIDGEN_LIB_DIR=$MESQUITE_LIB," etc/prefs.sh
+    sed -i "s,#export PARMGRIDGEN_INCLUDE_DIR=$PARMGRIDGEN_DIR/include,export PARMGRIDGEN_INCLUDE_DIR=$MESQUITE_INC," etc/prefs.sh
+
+    ### Scotch
+    sed -i "s/#export SCOTCH_SYSTEM=1/export SCOTCH_SYSTEM=1/" etc/prefs.sh
+    sed -i "s/#export SCOTCH_DIR=path_to_system_installed_scotch/export SCOTCH_DIR=$SCOTCH_DIR/" etc/prefs.sh
+    sed -i "s,#export SCOTCH_BIN_DIR=$SCOTCH_DIR/bin,export SCOTCH_BIN_DIR=$SCOTCH_BIN," etc/prefs.sh
+    sed -i "s,#export SCOTCH_LIB_DIR=$SCOTCH_DIR/lib,export SCOTCH_LIB_DIR=$SCOTCH_LIB," etc/prefs.sh
+    sed -i "s,#export SCOTCH_INCLUDE_DIR=$SCOTCH_DIR/include,export SCOTCH_INCLUDE_DIR=$SCOTCH_INC," etc/prefs.sh
+
+    ### hwloc
+    sed -i "s/#export HWLOC_SYSTEM=1/export HWLOC_SYSTEM=1/" etc/prefs.sh
+    sed -i "s/#export HWLOC_DIR=path_to_system_installed_hwloc/export HWLOC_DIR=$HWLOC_DIR/" etc/prefs.sh
+    sed -i "s,#export HWLOC_BIN_DIR=$HWLOC_DIR/bin,export HWLOC_BIN_DIR=$HWLOC_BIN," etc/prefs.sh
+    sed -i "s,#export HWLOC_LIB_DIR=$HWLOC_DIR/lib,export HWLOC_LIB_DIR=$HWLOC_LIB," etc/prefs.sh
+    sed -i "s,#export HWLOC_INCLUDE_DIR=$HWLOC_DIR/include,export HWLOC_INCLUDE_DIR=$HWLOC_INC," etc/prefs.sh
+
+    ### Zoltan
+    sed -i "s/#export MESQUITE_SYSTEM=1/export MESQUITE_SYSTEM=1/" etc/prefs.sh
+    sed -i "s/#export MESQUITE_DIR=path_to_system_installed_mesquite/export MESQUITE_DIR=$MESQUITE_DIR/" etc/prefs.sh
+    sed -i "s,#export MESQUITE_BIN_DIR=$MESQUITE_DIR/bin,export MESQUITE_BIN_DIR=$MESQUITE_BIN," etc/prefs.sh
+    sed -i "s,#export MESQUITE_LIB_DIR=$MESQUITE_DIR/lib,export MESQUITE_LIB_DIR=$MESQUITE_LIB," etc/prefs.sh
+    sed -i "s,#export MESQUITE_INCLUDE_DIR=$MESQUITE_DIR/include,export MESQUITE_INCLUDE_DIR=$MESQUITE_INC," etc/prefs.sh
 
     export OPENMPI_DIR=$MPI_DIR >> $SINGULARITY_ENVIRONMENT
 
@@ -127,6 +285,62 @@ From: centos:7
 
     export PATH=$MPI_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
     export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    export METIS_DIR=/opt/metis-5.1.0 >> $SINGULARITY_ENVIRONMENT
+    export METIS_BIN=$METIS_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export METIS_LIB=$METIS_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export METIS_INC=$METIS_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$METIS_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$METIS_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    export PARMGRIDGEN_DIR=/opt/ParMGridGen/ParMGridGen-1.0 >> $SINGULARITY_ENVIRONMENT
+    export PARMGRIDGEN_BIN=$PARMGRIDGEN_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export PARMGRIDGEN_LIB=$PARMGRIDGEN_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export PARMGRIDGEN_INC=$PARMGRIDGEN_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$PARMGRIDGEN_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$PARMGRIDGEN_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    export MESQUITE_DIR=/opt/mesquite-2.3.0 >> $SINGULARITY_ENVIRONMENT
+    export MESQUITE_BIN=$MESQUITE_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export MESQUITE_LIB=$MESQUITE_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export MESQUITE_INC=$MESQUITE_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$MESQUITE_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$MESQUITE_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    export SCOTCH_DIR=/opt/scotch >> $SINGULARITY_ENVIRONMENT
+    export SCOTCH_BIN=$SCOTCH_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export SCOTCH_LIB=$SCOTCH_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export SCOTCH_INC=$SCOTCH_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$SCOTCH_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$SCOTCH_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    export PARMETIS_DIR=/opt/parmetis-4.0.3 >> $SINGULARITY_ENVIRONMENT
+    export PARMETIS_BIN=$PARMETIS_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export PARMETIS_LIB=$PARMETIS_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export PARMETIS_INC=$PARMETIS_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$PARMETIS_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$PARMETIS_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    export ZOLTAN_DIR=/opt/zoltan-3.6 >> $SINGULARITY_ENVIRONMENT
+    export ZOLTAN_BIN=$ZOLTAN_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export ZOLTAN_LIB=$ZOLTAN_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export ZOLTAN_INC=$ZOLTAN_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$ZOLTAN_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$ZOLTAN_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
+
+    export HWLOC_DIR=/opt/hwloc-2.0.1 >> $SINGULARITY_ENVIRONMENT
+    export HWLOC_BIN=$HWLOC_DIR/bin >> $SINGULARITY_ENVIRONMENT
+    export HWLOC_LIB=$HWLOC_DIR/lib >> $SINGULARITY_ENVIRONMENT
+    export HWLOC_INC=$HWLOC_DIR/include >> $SINGULARITY_ENVIRONMENT
+
+    export PATH=$HWLOC_BIN:$PATH >> $SINGULARITY_ENVIRONMENT
+    export LD_LIBRARY_PATH=$HWLOC_LIB:$LD_LIBRARY_PATH >> $SINGULARITY_ENVIRONMENT
 
 %runscript
     echo
