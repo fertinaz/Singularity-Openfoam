@@ -11,14 +11,18 @@ From: centos:7
 
 %post
     ### Install prerequisites
+    yum update && \
+    yum install -y centos-release-scl && \
     yum groupinstall -y 'Development Tools' &&  \
-    yum install -y wget git  \
+    yum install -y wget git rh-python36 \
                    openssl-devel libuuid-devel  \
                    metis.x86_64 metis-devel.x86_64
 
+    source /opt/rh/rh-python36/enable
+
     ### Install OpenMPI
     # Why openmpi-4.x is needed: https://github.com/hpcng/singularity/issues/2590
-    mkdir -p ~/openmpi && cd ~/openmpi
+    mkdir -p /tmp/openmpi && cd /tmp/openmpi
     vrs=4.0.4
     wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-${vrs}.tar.gz
     tar xf openmpi-${vrs}.tar.gz && rm -f openmpi-${vrs}.tar.gz
@@ -26,7 +30,7 @@ From: centos:7
     ./configure --prefix=/opt/openmpi-${vrs}
     make all install
     make all clean
-    rm -rf ~/openmpi
+    rm -rf /tmp/openmpi
 
     ### Update environment - OpenMPI-4
     export MPI_DIR=/opt/openmpi-4.0.4 >> $SINGULARITY_ENVIRONMENT
@@ -58,16 +62,15 @@ From: centos:7
     ### Change dir to OpenFOAM-version
     cd $pkg-$vrs
     
-    sed -i 's/boost_version=boost_1_64_0/boost_version=boost-none/' etc/config.sh/CGAL
-    sed -i 's/cgal_version=CGAL-4.9.1/cgal_version=cgal-none/' etc/config.sh/CGAL
+    sed -i 's/boost_version=boost_1_66_0/boost_version=boost-none/' etc/config.sh/CGAL
+    sed -i 's/cgal_version=CGAL-4.12.2/cgal_version=cgal-none/' etc/config.sh/CGAL
     # sed -i 's/fftw_version=fftw-3.3.7/fftw_version=fftw-none/' etc/config.sh/FFTW
-    sed -i 's/gperftools_version=gperftools-2.5/gperftools_version=gperftools-none/' etc/config.sh/gperftools
-    sed -i 's/hypre_version=hypre-2.11.2/hypre_version=hypre-none/' etc/config.sh/hypre
+    sed -i 's/hypre_version=hypre-2.19.0/hypre_version=hypre-none/' etc/config.sh/hypre
     sed -i 's/KAHIP_VERSION=kahip-2.12/KAHIP_VERSION=kahip-none/' etc/config.sh/kahip
     sed -i 's/METIS_VERSION=metis-5.1.0/METIS_VERSION=metis-system/' etc/config.sh/metis
     sed -i 's/MGRIDGEN_VERSION=ParMGridGen-1.0/MGRIDGEN_VERSION=mgridgen-none/' etc/config.sh/mgridgen
     sed -i 's/ParaView_VERSION=5.6.3/ParaView_VERSION=none/' etc/config.sh/paraview
-    sed -i 's/petsc_version=petsc-3.9.3/petsc_version=petsc-none/' etc/config.sh/petsc
+    sed -i 's/petsc_version=petsc-3.13.2/petsc_version=petsc-none/' etc/config.sh/petsc
 
     export MPI_ARCH_PATH=$MPI_DIR >> $SINGULARITY_ENVIRONMENT
 
@@ -76,18 +79,18 @@ From: centos:7
     . etc/bashrc 
 
     ### Compile and install
-    ./Allwmake
+    ./Allwmake 2>&1 | tee log.Allwmake
 
     rm -rf build
 
     cd $base/ThirdParty-$vrs
     rm -rf build
-    rm -rf boost_1_64_0 CGAL-4.9.1 fftw-3.3.7 kahip-2.12 openmpi-1.10.7 ParaView-v5.6.3 scotch_6.0.9
+    rm -rf boost_1_66_0 CGAL-4.12.2 fftw-3.3.7 hypre-2.19.0 kahip-2.12 openmpi-4.0.3 ParaView-v5.6.3 scotch_6.0.9
 
     strip $FOAM_APPBIN/*
 
     ### Source bashrc at runtime
-    echo '. /opt/OpenFOAM/OpenFOAM-v1912/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
+    echo '. /opt/OpenFOAM/OpenFOAM-v2006/etc/bashrc' >> $SINGULARITY_ENVIRONMENT
 
 %environment
     export MPI_DIR=/opt/openmpi-4.0.4
@@ -95,8 +98,12 @@ From: centos:7
     export MPI_LIB=$MPI_DIR/lib
     export MPI_INC=$MPI_DIR/include
 
+    export MPI_ARCH_PATH=$MPI_DIR
+
     export PATH=$MPI_BIN:$PATH
     export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
+
+    source /opt/rh/rh-python36/enable
 
 %runscript
     echo
