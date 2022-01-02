@@ -268,3 +268,9 @@ mpirun -np 4 singularity exec $IMAGE_NAME snappyHexMesh -overwrite parallel
 mpirun -np 4 singularity exec $IMAGE_NAME potentialFoam -parallel
 mpirun -np 4 singularity exec $IMAGE_NAME simpleFoam -parallel
 ```
+
+#### OpenFOAM recipes: OF-2006
+You can use `run-demo.sh` provided in this repo to test `of-2006.sif` image. What `run-demo.sh` does essentially boils down to following steps:
+* `singularity pull library://fertinaz-hpc/openfoam/of-2006:sha256.9d1f8880ddd64717bcbbcb88ca6542e1a74fc3d2367d12122412fb34fb85c72f`
+* Copy and extract `motorBike-of-2006.tar.gz`
+* `singularity exec <openfoam-commands>`
